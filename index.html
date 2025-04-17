@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Censo 2022 - Entorno dos Domicílios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        /* Estilos Gerais */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        .container-max-width {
+            max-width: 1200px;
+            margin: 2rem auto;
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            padding: 1.5rem; /* p-6 */
+        }
+        @media (min-width: 768px) {
+            .container-max-width {
+                padding: 2.5rem; /* md:p-10 */
+            }
+        }
+
+        /* Estilos das Abas */
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            border: 2px solid transparent;
+            color: #4b5563; /* text-gray-600 */
+            white-space: nowrap;
+        }
+        .tab-button.active {
+            background-color: #10b981; /* bg-emerald-500 */
+            color: white;
+            border-color: #059669; /* border-emerald-600 */
+        }
+        .tab-button:not(.active):hover {
+            background-color: #e5e7eb; /* hover:bg-gray-200 */
+            color: #1f2937; /* hover:text-gray-800 */
+        }
+        .tab-content {
+            display: none;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            margin-top: -1px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Estilos dos Cards (Painel 1) */
+        .data-card {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .data-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .data-card h3 {
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.25rem; /* mb-1 */
+            line-height: 1.2;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 3em;
+        }
+        .data-card p {
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: 700;
+            color: #10b981;
+            margin-top: auto;
+        }
+
+        /* Estilos da Lista de Ranking (Painel 2) */
+        .ranking-list li {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .ranking-list li:hover { background-color: #f3f4f6; }
+        .ranking-list .rank-number { font-weight: 600; color: #6b7280; min-width: 2rem; }
+        .ranking-list .state-name { flex-grow: 1; margin-left: 1rem; font-weight: 500; color: #1f2937; }
+        .ranking-list .percentage { font-weight: 700; color: #10b981; font-size: 1.125rem; }
+
+        /* Ajustes Responsivos */
+        @media (max-width: 768px) {
+             .data-card h3 { font-size: 0.75rem; min-height: 3em; }
+             .data-card p { font-size: 1.25rem; }
+             .tab-button { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+        }
+        @media (max-width: 640px) {
+            .ranking-list .percentage { font-size: 1rem; }
+            .ranking-list .state-name { margin-left: 0.5rem; }
+            .container-max-width { margin: 1rem auto; padding: 1rem; }
+        }
+         /* Ajuste para Grid de Cards */
+         #state-data-display {
+             grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+         }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+    <div class="container-max-width">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Dashboard Censo 2022: Entorno dos Domicílios</h1>
+            <p class="text-gray-600">Consulte dados por estado, veja rankings e gráficos comparativos.</p>
+            <p class="text-sm text-gray-500 mt-2 px-4">
+                Os percentuais indicam a proporção de <strong>moradores em domicílios particulares permanentes ocupados</strong>, localizados nos <strong>setores censitários selecionados para a pesquisa</strong>, cujo entorno possuía a característica indicada.
+            </p>
+            <p class="text-sm text-gray-500 mt-1">Fonte: IBGE, Censo Demográfico 2022 (Tabelas 8, 12, 17, 22 do PDF)</p>
+        </header>
+
+        <nav class="flex flex-wrap justify-center gap-1 md:gap-2 mb-6 border-b border-gray-200 pb-3">
+            <button class="tab-button active" data-tab="tab-consulta">Consulta por Estado</button>
+            <button class="tab-button" data-tab="tab-ranking">Ranking de Estados</button>
+            <button class="tab-button" data-tab="tab-graficos">Infográficos</button>
+        </nav>
+
+        <div>
+            <div id="tab-consulta" class="tab-content active">
+                <div class="mb-6">
+                    <label for="state-select" class="block text-sm font-medium text-gray-700 mb-2">Selecione a Localidade:</label>
+                    <select id="state-select" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 transition duration-150 ease-in-out">
+                        <option value="BR">Brasil</option>
+                        <option value="AC">Acre</option>
+                        <option value="AL">Alagoas</option>
+                        <option value="AP">Amapá</option>
+                        <option value="AM">Amazonas</option>
+                        <option value="BA">Bahia</option>
+                        <option value="CE">Ceará</option>
+                        <option value="DF">Distrito Federal</option>
+                        <option value="ES">Espírito Santo</option>
+                        <option value="GO">Goiás</option>
+                        <option value="MA">Maranhão</option>
+                        <option value="MT">Mato Grosso</option>
+                        <option value="MS">Mato Grosso do Sul</option>
+                        <option value="MG">Minas Gerais</option>
+                        <option value="PA">Pará</option>
+                        <option value="PB">Paraíba</option>
+                        <option value="PR">Paraná</option>
+                        <option value="PE">Pernambuco</option>
+                        <option value="PI">Piauí</option>
+                        <option value="RJ">Rio de Janeiro</option>
+                        <option value="RN">Rio Grande do Norte</option>
+                        <option value="RS">Rio Grande do Sul</option>
+                        <option value="RO">Rondônia</option>
+                        <option value="RR">Roraima</option>
+                        <option value="SC">Santa Catarina</option>
+                        <option value="SP">São Paulo</option>
+                        <option value="SE">Sergipe</option>
+                        <option value="TO">Tocantins</option>
+                    </select>
+                </div>
+                <h2 id="consulta-title" class="text-xl font-semibold text-gray-700 mb-4 text-center">Dados para: Brasil</h2>
+                <div id="state-data-display" class="grid gap-3 md:gap-4">
+                    </div>
+            </div>
+
+            <div id="tab-ranking" class="tab-content">
+                <div class="mb-6">
+                    <label for="characteristic-select" class="block text-sm font-medium text-gray-700 mb-2">Selecione o Quesito para o Ranking:</label>
+                    <select id="characteristic-select" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 transition duration-150 ease-in-out">
+                        </select>
+                </div>
+                <h2 id="ranking-title" class="text-xl font-semibold text-gray-700 mb-4 text-center">Ranking para: Via Pavimentada</h2>
+                 <div id="ranking-national-average" class="mb-4 text-center text-gray-600 font-medium">
+                     </div>
+                <div id="ranking-data-display">
+                     <ol id="ranking-list" class="ranking-list space-y-2 max-h-96 overflow-y-auto pr-2">
+                        </ol>
+                </div>
+            </div>
+
+            <div id="tab-graficos" class="tab-content">
+                 <h2 id="chart-title" class="text-xl font-semibold text-gray-700 mb-4 text-center">Comparativo: Brasil vs Brasil</h2>
+                 <p class="text-center text-gray-600 mb-4 text-sm">Selecione um estado no painel "Consulta por Estado" para comparar com a média nacional.</p>
+                 <div class="chart-container" style="position: relative; height:50vh; width:90vw; max-width: 900px; margin: auto;">
+                     <canvas id="comparisonChart"></canvas>
+                 </div>
+            </div>
+        </div>
+
+        <footer class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
+            <p>Dashboard com dados selecionados do Censo Demográfico 2022.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- Dados ---
+        const censusData = {
+             "BR": { name: "Brasil", paving: 88.5, lighting: 97.5, sidewalk: 84.0, ramp: 15.2, trees: 66.0, capacity_truck_bus: 90.8, manhole: 53.7, bus_stop: 8.8, bike_lane: 1.9, sidewalk_no_obstacle: 18.8, capacity_moto_bike_ped: 2.9 },
+             "RO": { name: "Rondônia", paving: 70.4, lighting: 97.2, sidewalk: 68.8, ramp: 12.7, trees: 78.3, capacity_truck_bus: 96.7, manhole: 42.6, bus_stop: 3.5, bike_lane: 1.0, sidewalk_no_obstacle: 11.9, capacity_moto_bike_ped: 0.3 },
+             "AC": { name: "Acre", paving: 84.4, lighting: 92.4, sidewalk: 72.0, ramp: 10.2, trees: 42.1, capacity_truck_bus: 87.8, manhole: 67.3, bus_stop: 7.6, bike_lane: 2.9, sidewalk_no_obstacle: 5.6, capacity_moto_bike_ped: 3.9 },
+             "AM": { name: "Amazonas", paving: 88.6, lighting: 93.3, sidewalk: 73.8, ramp: 5.6, trees: 44.6, capacity_truck_bus: 85.7, manhole: 55.0, bus_stop: 4.5, bike_lane: 0.5, sidewalk_no_obstacle: 7.5, capacity_moto_bike_ped: 8.3 },
+             "RR": { name: "Roraima", paving: 88.2, lighting: 96.4, sidewalk: 60.3, ramp: 15.5, trees: 51.0, capacity_truck_bus: 91.4, manhole: 48.0, bus_stop: 4.9, bike_lane: 1.3, sidewalk_no_obstacle: 19.5, capacity_moto_bike_ped: 0.7 },
+             "PA": { name: "Pará", paving: 69.3, lighting: 95.7, sidewalk: 64.8, ramp: 7.0, trees: 52.1, capacity_truck_bus: 87.6, manhole: 44.3, bus_stop: 3.1, bike_lane: 2.1, sidewalk_no_obstacle: 8.8, capacity_moto_bike_ped: 3.7 },
+             "AP": { name: "Amapá", paving: 71.9, lighting: 88.4, sidewalk: 57.1, ramp: 14.8, trees: 60.1, capacity_truck_bus: 76.9, manhole: 36.8, bus_stop: 2.4, bike_lane: 3.1, sidewalk_no_obstacle: 11.1, capacity_moto_bike_ped: 15.1 },
+             "TO": { name: "Tocantins", paving: 84.5, lighting: 97.9, sidewalk: 84.7, ramp: 13.3, trees: 79.1, capacity_truck_bus: 98.0, manhole: 21.8, bus_stop: 1.6, bike_lane: 0.6, sidewalk_no_obstacle: 11.8, capacity_moto_bike_ped: 0.2 },
+             "MA": { name: "Maranhão", paving: 77.5, lighting: 98.3, sidewalk: 77.1, ramp: 6.4, trees: 52.8, capacity_truck_bus: 90.5, manhole: 24.7, bus_stop: 3.1, bike_lane: 0.5, sidewalk_no_obstacle: 4.6, capacity_moto_bike_ped: 2.0 },
+             "PI": { name: "Piauí", paving: 86.5, lighting: 97.9, sidewalk: 83.1, ramp: 8.4, trees: 66.7, capacity_truck_bus: 94.6, manhole: 11.6, bus_stop: 4.4, bike_lane: 1.5, sidewalk_no_obstacle: 4.9, capacity_moto_bike_ped: 1.0 },
+             "CE": { name: "Ceará", paving: 88.0, lighting: 98.2, sidewalk: 85.0, ramp: 7.1, trees: 68.9, capacity_truck_bus: 88.8, manhole: 20.9, bus_stop: 5.8, bike_lane: 3.2, sidewalk_no_obstacle: 10.8, capacity_moto_bike_ped: 3.1 },
+             "RN": { name: "Rio Grande do Norte", paving: 84.1, lighting: 98.5, sidewalk: 86.7, ramp: 14.1, trees: 66.1, capacity_truck_bus: 90.2, manhole: 19.2, bus_stop: 3.9, bike_lane: 0.9, sidewalk_no_obstacle: 10.8, capacity_moto_bike_ped: 2.0 },
+             "PB": { name: "Paraíba", paving: 79.2, lighting: 98.2, sidewalk: 85.3, ramp: 9.2, trees: 64.7, capacity_truck_bus: 91.1, manhole: 27.2, bus_stop: 5.0, bike_lane: 1.5, sidewalk_no_obstacle: 10.0, capacity_moto_bike_ped: 2.4 },
+             "PE": { name: "Pernambuco", paving: 76.3, lighting: 97.4, sidewalk: 71.2, ramp: 6.2, trees: 49.1, capacity_truck_bus: 79.4, manhole: 34.8, bus_stop: 5.2, bike_lane: 1.8, sidewalk_no_obstacle: 8.5, capacity_moto_bike_ped: 8.4 },
+             "AL": { name: "Alagoas", paving: 84.6, lighting: 98.5, sidewalk: 85.6, ramp: 12.0, trees: 45.4, capacity_truck_bus: 86.8, manhole: 46.8, bus_stop: 4.0, bike_lane: 0.9, sidewalk_no_obstacle: 11.7, capacity_moto_bike_ped: 4.9 },
+             "SE": { name: "Sergipe", paving: 89.2, lighting: 98.4, sidewalk: 90.3, ramp: 17.4, trees: 38.5, capacity_truck_bus: 94.8, manhole: 55.8, bus_stop: 5.7, bike_lane: 2.3, sidewalk_no_obstacle: 12.0, capacity_moto_bike_ped: 1.1 },
+             "BA": { name: "Bahia", paving: 84.1, lighting: 97.4, sidewalk: 74.4, ramp: 8.9, trees: 48.9, capacity_truck_bus: 82.6, manhole: 32.5, bus_stop: 3.8, bike_lane: 1.3, sidewalk_no_obstacle: 12.9, capacity_moto_bike_ped: 6.9 },
+             "MG": { name: "Minas Gerais", paving: 95.3, lighting: 98.4, sidewalk: 90.3, ramp: 14.2, trees: 64.3, capacity_truck_bus: 94.4, manhole: 51.2, bus_stop: 11.6, bike_lane: 0.9, sidewalk_no_obstacle: 15.3, capacity_moto_bike_ped: 1.7 },
+             "ES": { name: "Espírito Santo", paving: 91.3, lighting: 97.9, sidewalk: 79.0, ramp: 16.6, trees: 55.9, capacity_truck_bus: 89.9, manhole: 69.1, bus_stop: 10.6, bike_lane: 2.5, sidewalk_no_obstacle: 16.7, capacity_moto_bike_ped: 3.4 },
+             "RJ": { name: "Rio de Janeiro", paving: 88.9, lighting: 96.6, sidewalk: 79.4, ramp: 12.0, trees: 62.0, capacity_truck_bus: 83.1, manhole: 76.7, bus_stop: 11.3, bike_lane: 2.5, sidewalk_no_obstacle: 19.2, capacity_moto_bike_ped: 5.7 },
+             "SP": { name: "São Paulo", paving: 96.0, lighting: 97.4, sidewalk: 91.6, ramp: 14.8, trees: 74.4, capacity_truck_bus: 91.7, manhole: 57.6, bus_stop: 11.8, bike_lane: 2.2, sidewalk_no_obstacle: 25.5, capacity_moto_bike_ped: 2.4 },
+             "PR": { name: "Paraná", paving: 91.8, lighting: 98.3, sidewalk: 88.1, ramp: 37.3, trees: 82.6, capacity_truck_bus: 97.4, manhole: 83.4, bus_stop: 10.0, bike_lane: 1.9, sidewalk_no_obstacle: 26.8, capacity_moto_bike_ped: 0.2 },
+             "SC": { name: "Santa Catarina", paving: 82.7, lighting: 98.1, sidewalk: 78.1, ramp: 19.9, trees: 41.0, capacity_truck_bus: 95.4, manhole: 85.2, bus_stop: 11.9, bike_lane: 5.2, sidewalk_no_obstacle: 26.3, capacity_moto_bike_ped: 0.4 },
+             "RS": { name: "Rio Grande do Sul", paving: 82.4, lighting: 97.0, sidewalk: 82.0, ramp: 20.2, trees: 76.6, capacity_truck_bus: 93.9, manhole: 75.1, bus_stop: 14.5, bike_lane: 1.5, sidewalk_no_obstacle: 28.7, capacity_moto_bike_ped: 0.9 },
+             "MS": { name: "Mato Grosso do Sul", paving: 78.8, lighting: 98.8, sidewalk: 84.1, ramp: 41.1, trees: 92.4, capacity_truck_bus: 98.0, manhole: 48.3, bus_stop: 6.2, bike_lane: 1.1, sidewalk_no_obstacle: 23.4, capacity_moto_bike_ped: 0.2 },
+             "MT": { name: "Mato Grosso", paving: 83.1, lighting: 98.2, sidewalk: 82.7, ramp: 22.4, trees: 80.9, capacity_truck_bus: 97.9, manhole: 49.0, bus_stop: 3.1, bike_lane: 1.4, sidewalk_no_obstacle: 27.4, capacity_moto_bike_ped: 0.1 },
+             "GO": { name: "Goiás", paving: 94.0, lighting: 98.9, sidewalk: 92.6, ramp: 16.9, trees: 81.9, capacity_truck_bus: 97.9, manhole: 36.1, bus_stop: 3.8, bike_lane: 0.9, sidewalk_no_obstacle: 21.1, capacity_moto_bike_ped: 0.1 },
+             "DF": { name: "Distrito Federal", paving: 94.2, lighting: 93.5, sidewalk: 92.9, ramp: 30.4, trees: 84.2, capacity_truck_bus: 96.7, manhole: 61.3, bus_stop: 7.9, bike_lane: 4.1, sidewalk_no_obstacle: 20.9, capacity_moto_bike_ped: 0.2 }
+        };
+
+        // Mapeamento de chaves para rótulos legíveis (rótulos mantidos da versão anterior)
+        const characteristicLabels = {
+            paving: 'Via Pavimentada (%)',
+            lighting: 'Iluminação Pública (%)',
+            sidewalk: 'Existência de Calçada/Passeio (%)',
+            sidewalk_no_obstacle: 'Calçada Livre de Obstáculo (%)',
+            ramp: 'Rampa p/ Cadeira de Rodas (%)',
+            trees: 'Arborização (1+ árvore) (%)',
+            capacity_truck_bus: 'Via: Capacidade Caminhão/Ônibus (%)',
+            capacity_moto_bike_ped: 'Via: Capacidade Moto/Bicicleta/Pedestre (%)',
+            manhole: 'Bueiro / Boca de Lobo (%)',
+            bus_stop: 'Ponto de Ônibus/Van (%)',
+            bike_lane: 'Via Sinalizada p/ Bicicleta (%)'
+        };
+        // Chaves ordenadas para exibição consistente
+        const characteristicKeys = [
+            'capacity_truck_bus', 'capacity_moto_bike_ped', 'paving', 'lighting', 'manhole', 'bus_stop',
+            'sidewalk', 'sidewalk_no_obstacle', 'ramp', 'bike_lane', 'trees'
+        ];
+
+
+        // --- Elementos DOM ---
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const stateSelect = document.getElementById('state-select');
+        const stateDataDisplay = document.getElementById('state-data-display');
+        const consultaTitle = document.getElementById('consulta-title');
+        const characteristicSelect = document.getElementById('characteristic-select');
+        const rankingList = document.getElementById('ranking-list');
+        const rankingTitle = document.getElementById('ranking-title');
+        const rankingNationalAverage = document.getElementById('ranking-national-average');
+        const chartTitle = document.getElementById('chart-title');
+        const chartCanvas = document.getElementById('comparisonChart').getContext('2d');
+        let comparisonChart = null;
+
+        // --- Funções de Exibição ---
+
+        // Painel 1: Consulta por Estado
+        function displayStateData(stateCode) {
+            const data = censusData[stateCode];
+            if (!data) return;
+
+            consultaTitle.textContent = `Dados para: ${data.name}`;
+            stateDataDisplay.innerHTML = '';
+
+            characteristicKeys.forEach(key => {
+                 if (characteristicLabels[key]) {
+                    const card = document.createElement('div');
+                    card.className = 'data-card';
+                    const cardTitle = characteristicLabels[key].replace(' (%)','');
+                    card.innerHTML = `
+                        <h3>${cardTitle}</h3>
+                        <p>${data[key]?.toFixed(1) ?? 'N/A'}%</p>
+                    `;
+                    stateDataDisplay.appendChild(card);
+                 }
+            });
+            displayChart(stateCode);
+        }
+
+        // Painel 2: Ranking de Estados
+        function displayRanking(characteristicKey) {
+            const label = characteristicLabels[characteristicKey] || 'Característica';
+            rankingTitle.textContent = `Ranking para: ${label.replace(' (%)','')}`;
+
+            const statesData = Object.entries(censusData)
+                .filter(([key, _]) => key !== "BR")
+                .map(([key, value]) => ({
+                    code: key,
+                    name: value.name,
+                    value: value[characteristicKey]
+                }))
+                .filter(item => item.value !== undefined && item.value !== null)
+                .sort((a, b) => b.value - a.value);
+
+            rankingList.innerHTML = '';
+
+            statesData.forEach((state, index) => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <span class="rank-number">${index + 1}º</span>
+                    <span class="state-name">${state.name} (${state.code})</span>
+                    <span class="percentage">${state.value.toFixed(1)}%</span>
+                `;
+                rankingList.appendChild(listItem);
+            });
+
+             const nationalValue = censusData["BR"][characteristicKey];
+             rankingNationalAverage.textContent = nationalValue !== undefined
+                ? `Média Brasil: ${nationalValue.toFixed(1)}%`
+                : '';
+        }
+
+        // Painel 3: Infográficos
+        function displayChart(stateCode) {
+            const stateData = censusData[stateCode];
+            const brazilData = censusData["BR"];
+            if (!stateData || !brazilData) return;
+
+             chartTitle.textContent = `Comparativo (% Moradores): ${stateData.name} vs Brasil`;
+
+            const validKeys = characteristicKeys.filter(key => characteristicLabels[key]);
+            const labels = validKeys.map(key => characteristicLabels[key].replace(' (%)',''));
+            const stateValues = validKeys.map(key => stateData[key]);
+            const brazilValues = validKeys.map(key => brazilData[key]);
+
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+
+            comparisonChart = new Chart(chartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: stateData.name,
+                            data: stateValues,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderColor: 'rgba(5, 150, 105, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Brasil (Média)',
+                            data: brazilValues,
+                            backgroundColor: 'rgba(107, 114, 128, 0.6)',
+                            borderColor: 'rgba(55, 65, 81, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                     indexAxis: 'y',
+                     scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                             ticks: { callback: function(value) { return value + '%'; } }
+                        },
+                        y: {
+                             ticks: {
+                                 autoSkip: false,
+                                 font: { size: 10 }
+                             }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.x !== null) {
+                                        label += context.parsed.x.toFixed(1) + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- Lógica das Abas ---
+        function setActiveTab(selectedTabId) {
+            tabContents.forEach(content => content.classList.remove('active'));
+            tabButtons.forEach(button => button.classList.remove('active'));
+            document.getElementById(selectedTabId).classList.add('active');
+            document.querySelector(`button[data-tab='${selectedTabId}']`).classList.add('active');
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => setActiveTab(button.getAttribute('data-tab')));
+        });
+
+        // --- Event Listeners dos Seletores ---
+        stateSelect.addEventListener('change', (event) => displayStateData(event.target.value));
+        characteristicSelect.addEventListener('change', (event) => displayRanking(event.target.value));
+
+        // --- Inicialização ---
+        function populateCharacteristicSelect() {
+            characteristicSelect.innerHTML = ''; // Limpa opções antigas
+            characteristicKeys.forEach(key => {
+                if(characteristicLabels[key]) {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = characteristicLabels[key].replace(' (%)','');
+                    characteristicSelect.appendChild(option);
+                }
+            });
+             characteristicSelect.value = 'paving'; // Define valor padrão
+        }
+
+        window.onload = () => {
+            populateCharacteristicSelect();
+            displayStateData('BR');
+            displayRanking(characteristicSelect.value);
+            setActiveTab('tab-consulta');
+        };
+    </script>
+
+</body>
+</html>
